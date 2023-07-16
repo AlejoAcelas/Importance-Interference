@@ -18,7 +18,7 @@ import einops
 
 update_layout_set = {"xaxis_range", "yaxis_range", "hovermode", "xaxis_title", "yaxis_title", "colorbar", "colorscale", "coloraxis", "title_x", "bargap", "bargroupgap", "xaxis_tickformat", "yaxis_tickformat", "title_y", "legend_title_text", "xaxis_showgrid", "xaxis_gridwidth", "xaxis_gridcolor", "yaxis_showgrid", "yaxis_gridwidth", "yaxis_gridcolor", "showlegend", "xaxis_tickmode", "yaxis_tickmode", "margin", "xaxis_visible", "yaxis_visible", "bargap", "bargroupgap", "coloraxis_showscale"}
 
-def imshow(tensor, renderer=None, **kwargs):
+def imshow(tensor, renderer=None, return_fig=False, **kwargs):
     kwargs_post = {k: v for k, v in kwargs.items() if k in update_layout_set}
     kwargs_pre = {k: v for k, v in kwargs.items() if k not in update_layout_set}
     facet_labels = kwargs_pre.pop("facet_labels", None)
@@ -39,6 +39,8 @@ def imshow(tensor, renderer=None, **kwargs):
     if border:
         fig.update_xaxes(showline=True, linewidth=1, linecolor='black', mirror=True)
         fig.update_yaxes(showline=True, linewidth=1, linecolor='black', mirror=True)
+    if return_fig:
+        return fig
     fig.show(renderer=renderer)
 
 
@@ -53,7 +55,7 @@ def reorder_list_in_plotly_way(L: list, col_wrap: int):
     return L_new
 
 
-def line(y: Union[t.Tensor, List[t.Tensor]], renderer=None, **kwargs):
+def line(y: Union[t.Tensor, List[t.Tensor]], renderer=None, return_fig=False, **kwargs):
     '''
     Edit to this helper function, allowing it to take args in update_layout (e.g. yaxis_range).
     '''
@@ -94,6 +96,8 @@ def line(y: Union[t.Tensor, List[t.Tensor]], renderer=None, **kwargs):
         fig = px.line(y=y, **kwargs_pre).update_layout(**kwargs_post)
         if names is not None:
             fig.for_each_trace(lambda trace: trace.update(name=names.pop(0)))
+        if return_fig:
+            return fig
         fig.show(renderer)
         
 
@@ -132,7 +136,7 @@ def scatter(x, y, renderer=None, return_fig=False, **kwargs):
         return fig
     fig.show(renderer)
 
-def bar(tensor, renderer=None, **kwargs):
+def bar(tensor, renderer=None, return_fig=False, **kwargs):
     '''
     '''
     kwargs_post = {k: v for k, v in kwargs.items() if k in update_layout_set}
@@ -141,9 +145,12 @@ def bar(tensor, renderer=None, **kwargs):
         kwargs_post["hovermode"] = "x unified"
     if "margin" in kwargs_post and isinstance(kwargs_post["margin"], int):
         kwargs_post["margin"] = dict.fromkeys(list("tblr"), kwargs_post["margin"])
-    px.bar(y=to_numpy(tensor), **kwargs_pre).update_layout(**kwargs_post).show(renderer)
+    fig = px.bar(y=to_numpy(tensor), **kwargs_pre).update_layout(**kwargs_post)
+    if return_fig:
+        return fig
+    fig.show(renderer)
 
-def hist(tensor, renderer=None, **kwargs):
+def hist(tensor, renderer=None, return_fig=True, **kwargs):
     '''
     '''
     kwargs_post = {k: v for k, v in kwargs.items() if k in update_layout_set}
@@ -152,7 +159,10 @@ def hist(tensor, renderer=None, **kwargs):
         kwargs_post["bargap"] = 0.1
     if "margin" in kwargs_post and isinstance(kwargs_post["margin"], int):
         kwargs_post["margin"] = dict.fromkeys(list("tblr"), kwargs_post["margin"])
-    px.histogram(x=to_numpy(tensor), **kwargs_pre).update_layout(**kwargs_post).show(renderer)
+    fig = px.histogram(x=to_numpy(tensor), **kwargs_pre).update_layout(**kwargs_post)
+    if return_fig:
+        return fig
+    fig.show(renderer)
 
 
 
