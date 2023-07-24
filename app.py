@@ -1,9 +1,10 @@
 import streamlit as st
 import torch
-from utils import *
+from model_settings import *
 from plotly_utils import *
 import os 
 import glob
+from plots import *
 
 if torch.cuda.is_available():
   DEVICE = 'cuda'
@@ -24,7 +25,7 @@ with st.sidebar:
     st.write('Select the feature probability... ')
 
     st.divider()
-    training_data = st.selectbox('Training data', options=['One-hot', 'Uniform'], index=0)
+    training_data = st.selectbox('Training data', options=['Uniform', 'One-hot'], index=0)
     loss_fn = st.selectbox('Loss function', options=['MSE', 'Cross-entropy'], index=0)
 
     st.divider()
@@ -68,8 +69,8 @@ if run_model:
            model, 
            steps=10_000,
            lr=1e-3,
-           batch_fn=Model.generate_batch_one_hot,
-           loss_fn=Model.cross_entropy_loss,)
+           batch_fn=Model.generate_batch_rand,
+           loss_fn=Model.mse_loss,)
         ## Modify the optimize function to yield the loss and training step
 
 
@@ -86,19 +87,15 @@ if run_model:
     plots_tab, annotations_tab = st.tabs(['Plots', 'Annotations'])
 
     with plots_tab:
-        batch, labels = model.generate_batch_one_hot_noiseless(n_chunks=50)
-        noise_levels = torch.linspace(0, 2, 10, device=DEVICE)
-        out = model.run_with_noise(batch, noise_std=noise_levels)
-        labels = einops.repeat(labels, 'b i -> n b i', n=len(noise_levels))
-        loss = model.cross_entropy_loss_unweighted(out, labels, per_feature=True).mean(1) # shape [noise_std, n_instances, n_features]
-        loss_lines = line([l for l in (loss)[:, :, :-1].mean(1)], title=f'Loss per feature from different noise levels (avg over 10 models)', 
-            color_discrete_sequence=px.colors.sequential.Viridis,
-            yaxis_title='Loss', xaxis_title='Feature', names=[f'Noise std {n:.2f}' for n in noise_levels], return_fig=True)
-        st.plotly_chart(loss_lines, use_container_width=True)
+        fig = plot_noise_curves(model)
+        st.plotly_chart(fig, use_container_width=True)
+
+        fig = plot_hidden_2d(model)
+        st.plotly_chart(fig, use_container_width=True)
 
     with annotations_tab:
 
-        new_anot = st.text_area('Annotations', value='Write your annotations here', height=200, on_change=lambda *args: print(new_anot))
+        new_anot = st.text_area('Annotations', value='At some point this field might have persistence across sessions', height=200, on_change=lambda *args: print(new_anot))
 
 
 # import json

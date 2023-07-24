@@ -164,7 +164,43 @@ def hist(tensor, renderer=None, return_fig=True, **kwargs):
         return fig
     fig.show(renderer)
 
+def figs_to_subplots(figs, rows=1, cols=None, subplot_titles=[], shared_yaxes=False, shared_xaxes=False, 
+                     xaxis="", yaxis="", title="", reverse_y=False, reverse_x=False, colorscale="RdBu", 
+                     cmid=0.0, cmax=None, cmin=None, return_fig=False, horizontal_spacing=None, vertical_spacing=None, **layout_kwargs):
+    """ 
+    Janky function that takes a list of figures and makes a plot with each as a subplot. Assumes the list is flattened, and will put it into any subplot shape.
+    """
+    if cols is None:
+        cols = len(figs)
+    assert (rows * cols)==len(figs)
+    sfig = make_subplots(rows=rows, cols=cols, subplot_titles=subplot_titles, 
+                         shared_xaxes=shared_xaxes, shared_yaxes=shared_yaxes,
+                         vertical_spacing=vertical_spacing, horizontal_spacing=horizontal_spacing)
+    
+    for i, fig in enumerate(figs):
+        c = 1 + (i//(rows))
+        r = 1 + (i%rows)
+        for trace in fig.data:
+            sfig.add_trace(trace, row=r, col=c)
+    sfig.update_layout(title_text=title)
+    if shared_xaxes:
+        for c in range(1, cols+1): 
+            sfig.update_xaxes(title_text=xaxis, col=c, row=1)
+    else:
+        sfig.update_xaxes(title_text=xaxis)
+    if shared_yaxes:
+        for r in range(1, rows+1): 
+            sfig.update_yaxes(title_text=yaxis, col=1, row=r)
+    else:
+        sfig.update_yaxes(title_text=yaxis)
+    if reverse_y:
+        sfig.update_yaxes(autorange="reversed")
+    if reverse_x:
+        sfig.update_xaxes(autorange="reversed")
 
+    if return_fig:
+        return sfig
+    fig.show()
 
 
 
