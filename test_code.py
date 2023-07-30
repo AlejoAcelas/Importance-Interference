@@ -67,7 +67,7 @@ def test_mse_loss(model_with_params, bare_model):
     batch_one_hot, _ = model.generate_batch_one_hot_noiseless(5)
 
     zero_loss = model.mse_loss(batch, target)
-    loss_per_feat_inst = model.mse_loss(batch_one_hot, torch.zeros_like(batch_one_hot), per_feature=True)
+    loss_per_feat_inst = model.mse_loss(batch_one_hot, torch.zeros_like(batch_one_hot), per_feature=True).mean(0) # [n_instances, n_features]
     loss_per_feat = loss_per_feat_inst.mean(dim=0)
 
     assert zero_loss.shape == (3,)
@@ -87,9 +87,9 @@ def test_cross_entropy_loss(model_with_params, bare_model):
     batch, target = model.generate_batch_one_hot(1000)
     
     loss = model.cross_entropy_loss_unweighted(batch, target, per_feature=False)
-    loss_per_feat = bare_model.cross_entropy_loss(batch, target, per_feature=True)
-    loss_per_feat_unweighted = model.cross_entropy_loss_unweighted(batch, target, per_feature=True)
-    low_loss_per_feat = model.cross_entropy_loss(20*batch_one_hot, target_one_hot, per_feature=True)
+    loss_per_feat = bare_model.cross_entropy_loss(batch, target, per_feature=True).mean(0)
+    loss_per_feat_unweighted = model.cross_entropy_loss_unweighted(batch, target, per_feature=True).mean(0)
+    low_loss_per_feat = model.cross_entropy_loss(20*batch_one_hot, target_one_hot, per_feature=True).mean(0)
 
     print('Loss', loss) 
     print('Loss per feat', loss_per_feat)

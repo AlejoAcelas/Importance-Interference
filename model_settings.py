@@ -26,10 +26,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import importlib
-import plotly_utils
+import my_plotly_utils
 
-importlib.reload(plotly_utils)
-from plotly_utils import imshow, line, hist, scatter
+importlib.reload(my_plotly_utils)
+from my_plotly_utils import imshow, line, hist, scatter
 
 import matplotlib.pyplot as plt
 
@@ -68,10 +68,12 @@ class Model(nn.Module):
   ### Batch generators
   # I assume that batch is of shape [n_batch, n_instances, n_features] or [n_batch, extra_dim, n_instances, n_features]
 
-  def generate_batch_rand(self, n_batch):
+  def generate_batch_rand(self, n_batch, feature_probability=None):
+    if feature_probability is None:
+      feature_probability = self.feature_probability
     feat = torch.rand((n_batch, self.config.n_instances, self.config.n_features), device=self.W.device)
     batch = torch.where(
-        torch.rand((n_batch, self.config.n_instances, self.config.n_features), device=self.W.device) <= self.feature_probability,
+        torch.rand((n_batch, self.config.n_instances, self.config.n_features), device=self.W.device) <= feature_probability,
         feat,
         torch.zeros((), device=self.W.device),
     )
@@ -84,7 +86,7 @@ class Model(nn.Module):
     all_features = torch.eye(self.config.n_features-1, device=self.W.device)
     feat = einops.repeat(all_features, 'f1 f2 -> batch instance f1 f2', batch=n_batch, instance=self.config.n_instances)
     sparsitiy_filter = (
-      torch.rand((n_batch, self.config.n_instances, self.config.n_features-1), device=self.W.device) <= self.feature_probability
+      torch.rand((n_batch, self.config.n_instances, self.config.n_features-1), device=self.W.device) <= feature_probability
     ).float()
     
     batch = (feat * sparsitiy_filter[:, :, None, :]).sum(-1) # shape [n_batch, n_instances, n_features]
@@ -116,8 +118,10 @@ class Model(nn.Module):
 
   ## Loss functions
 
-  def mse_loss(self, out, target, per_feature=False):
-    error = self.importance*((target.abs() - out))**2
+  def mse_loss(self, out, target, per_feature=False, importance=None):
+    if importance is None:
+      importance = self.importance
+    error = importance*((target.abs() - out))**2
     if per_feature:
       return error
     else:
@@ -130,11 +134,13 @@ class Model(nn.Module):
     else:
       return einops.reduce(error, 'b ... i f -> ... i', 'mean')
 
-  def cross_entropy_loss(self, out, target, per_feature=False):
+  def cross_entropy_loss(self, out, target, per_feature=False, importance=None):
+    if importance is None:
+      importance = self.importance
     loss = F.cross_entropy(
     einops.rearrange(out, 'b ... i f -> b ... f i'), 
     target,
-    weight=self.importance.squeeze(),
+    weight=importance.squeeze(),
     reduction='none')
     if per_feature:
       loss_per_feat = torch.zeros_like(out)

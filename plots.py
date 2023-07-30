@@ -10,6 +10,7 @@ from jaxtyping import Float, Int, Bool
 
 import numpy as np
 import einops
+from math import ceil
 
 from tqdm.notebook import trange
 
@@ -20,10 +21,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import importlib
-import plotly_utils
+import my_plotly_utils
 
-importlib.reload(plotly_utils)
-from plotly_utils import *
+importlib.reload(my_plotly_utils)
+from my_plotly_utils import *
 import matplotlib.pyplot as plt
 
 from model_settings import *
@@ -100,6 +101,50 @@ def plot_hidden_2d(model: Model, rows=2, cols=5):
                                title='Hidden space', shared_xaxes=True, shared_yaxes=True)
     return big_fig
 
+
+def plot_hidden_2D(model: BasicMLP, rows: Optional[int] = 2, cols: Optional[int] = None):
+    W = model.W.detach().cpu().numpy()
+    b = model.b_final.detach().cpu().numpy()
+    n_instances, n_features, _ = W.shape
+
+    rows = rows
+    cols = cols if cols is not None else ceil(n_instances / rows)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(3*cols, 3*rows), sharex=True, sharey=True)
+
+    # Define a set of colors for different features
+    colors = ['b', 'r', 'g', 'm', 'darkorange', 'y', 'c']
+    print(list(zip([f'Feat {f}' for f in range(b.shape[-1])], colors)))
+
+    # Make sure axes is always a 2D array, even when n_instances=1
+    if n_instances == 1:
+        axes = np.array([[axes]])
+
+    for i in range(rows):
+        for j in range(cols):
+            idx = i * cols + j
+            if idx < n_instances:
+                # Create origin points for each feature vector
+                X = np.zeros(n_features)
+                Y = np.zeros(n_features)
+                U = W[idx, :, 0]
+                V = W[idx, :, 1]
+                
+                for f in range(n_features):
+                    axes[i, j].quiver(X[f], Y[f], U[f], V[f], angles='xy', scale_units='xy', scale=1, color=colors[f % len(colors)], alpha=0.9)
+                    axes[i, j].scatter(b[idx, f]*U[f], b[idx, f]*V[f], color=colors[f % len(colors)], label=f'Feature {f+1}')
+                
+                axes[i, j].set_xlim(-1, 1)
+                axes[i, j].set_ylim(-1, 1)
+                axes[i, j].set_title(f"Instance {idx}")
+            else:
+                axes[i, j].axis('off')  # hide unused subplots
+    # axes[0, 0].legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
 # plot_hidden_2d(model).show()
 
 def render_features(model, which=np.s_[:]):
@@ -171,6 +216,35 @@ Weight: %{customdata:0.2f}
   return fig
 
 
+def plot_intro_diagram(model):
+  from matplotlib import colors  as mcolors
+  from matplotlib import collections  as mc
+  cfg = model.config
+  WA = model.W.detach()
+  N = len(WA[:,0])
+  sel = range(config.n_instances) # can be used to highlight specific sparsity levels
+  plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.viridis(model.importance[0].cpu().numpy()))
+  plt.rcParams['figure.dpi'] = 200
+  fig, axs = plt.subplots(1,len(sel), figsize=(2*len(sel),2))
+  for i, ax in zip(sel, axs):
+      W = WA[i].cpu().detach().numpy()
+      colors = [mcolors.to_rgba(c)
+            for c in plt.rcParams['axes.prop_cycle'].by_key()['color']]
+      ax.scatter(W[:,0], W[:,1], c=colors[0:len(W[:,0])])
+      ax.set_aspect('equal')
+      ax.add_collection(mc.LineCollection(np.stack((np.zeros_like(W),W), axis=1), colors=colors))
+      
+      z = 1.5
+      ax.set_facecolor('#FCFBF8')
+      ax.set_xlim((-z,z))
+      ax.set_ylim((-z,z))
+      ax.tick_params(left = True, right = False , labelleft = False ,
+                  labelbottom = False, bottom = True)
+      for spine in ['top', 'right']:
+          ax.spines[spine].set_visible(False)
+      for spine in ['bottom','left']:
+          ax.spines[spine].set_position('center')
+  plt.show()
 
 # %%
 

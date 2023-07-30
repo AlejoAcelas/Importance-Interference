@@ -1,7 +1,7 @@
 import streamlit as st
 import torch
 from model_settings import *
-from plotly_utils import *
+from my_plotly_utils import *
 import os 
 import glob
 from plots import *
